@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=db;Database=MyDatabase;User Id=sa;Password=YourStrong!Passw0rd;
+
+  db:
+    image: mcr.microsoft.com/mssql/server:latest
+    environment:
+      SA_PASSWORD: "YourStrong!Passw0rd"
+      ACCEPT_EULA: "Y"
+    ports:
+      - "1433:1433"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    command: ["/bin/bash", "-c", "/usr/src/app/init-db.sh & /opt/mssql/bin/sqlservr"]
+    volumes:
+      - mssql_data:/var/opt/mssql
+      - ./db:/usr/src/app
+
+volumes:
+  mssql_data:
+
+# Voorbeeld bestanden:
+
+# db/init-db.sh
+# #!/bin/bash
+# echo "Waiting for SQL Server to start..."
+# sleep 30s
+# /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "YourStrong!Passw0rd" -d master -i /usr/src/app/init-db.sql
+
+# db/init-db.sql
+# CREATE DATABASE MyDatabase;
+# GO
+# USE MyDatabase;
+# GO
+# CREATE TABLE Messages (
+#     Id INT PRIMARY KEY IDENTITY(1,1),
+#     Text NVARCHAR(255) NOT NULL
+# );
+# GO
+# INSERT INTO Messages (Text) VALUES ('Hello from Database');
+# GO
+
+# frontend/Dockerfile
+# FROM nginx:latest
+# COPY . /usr/share/nginx/html
+
+# frontend/index.html
+# <html>
+#   <head>
+#     <title>Simple Frontend</title>
+#   </head>
+#   <body>
+#     <h1>Hello from Frontend</h1>
+#     <script>
+#       fetch('http://localhost:5000/api/data')
+#         .then(response => response.json())
+#         .then(data => document.body.innerHTML += `<p>${data.message}</p>`);
+#     </script>
+#   </body>
+# </html>
+
+# backend/Program.cs
+# using Microsoft.AspNetCore.Builder;
+# using Microsoft.AspNetCore.Hosting;
+# using Microsoft.AspNetCore.Http;
+# using Microsoft.Extensions.DependencyInjection;
+# using Microsoft.Extensions.Hosting;
+# using Microsoft.Data.SqlClient;
+# using System;
+#
+# var builder = WebApplication.CreateBuilder(args);
+# builder.Services.AddCors();
+# var app = builder.Build();
+#
+# app.UseCors(policy => policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+#
+# app.MapGet("/api/data", async () => {
+#     var connectionString = "Server=db;Database=MyDatabase;User Id=sa;Password=YourStrong!Passw0rd;";
+#     using var connection = new SqlConnection(connectionString);
+#     await connection.OpenAsync();
+#     var command = new SqlCommand("SELECT TOP 1 Text FROM Messages", connection);
+#     var message = (string)await command.ExecuteScalarAsync();
+#     return new { message };
+# });
+#
+# app.Run();
+
+# backend/Dockerfile
+# FROM mcr.microsoft.com/dotnet/aspnet:6.0
+# COPY . /app
+# WORKDIR /app
+# CMD ["dotnet", "run"]
