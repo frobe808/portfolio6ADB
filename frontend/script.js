@@ -1,6 +1,6 @@
 window.addEventListener("load", () => {
 
-    // test api call
+    // test api call, comment change
     fetch("http://localhost:5000/api")
         .then(response => response.json())
         .then(data => {
